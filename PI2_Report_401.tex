@@ -409,6 +409,93 @@ These advanced models, while mathematically more complex, provide a more accurat
 
 \chapter{Stochastic Volatility Models}
 \label{ch:stochastic_volatility}
+\chapter{The SABR Model}
+\label{ch:sabr}
+
+\section{Introduction}
+
+The SABR model (Stochastic Alpha Beta Rho) introduces stochastic volatility but models it differently from the Heston model. 
+The stochastic differential equations that define the SABR dynamics are given by:
+
+\[
+\begin{cases}
+dF_t = \alpha_t F_t^{\beta} dW_t^{(1)}, \\
+d\alpha_t = \nu \alpha_t dW_t^{(2)},
+\end{cases}
+\]
+
+where the two Brownian motions $W_t^{(1)}$ and $W_t^{(2)}$ are correlated with coefficient $\rho$.
+
+Here:
+\begin{itemize}
+    \item $F_t$ is the forward price of the underlying asset (for example, a rate or forward price);
+    \item $\alpha_t$ is the instantaneous volatility;
+    \item $\nu$ is the volatility of volatility (vol-of-vol);
+    \item $\beta$ controls how the model depends on the level of $F_t$;
+    \item $\rho$ represents the correlation between price and volatility changes.
+\end{itemize}
+
+\section{Purpose of the Model}
+
+The goal of the SABR model is not to directly price options but to provide a fast analytical formula to interpolate and extrapolate the volatility smile. 
+In other words, the model describes the shape of implied volatility as a function of strike and maturity.
+
+\subsection*{Why Interpolation Is Needed}
+
+In practice, the market does not quote option prices for every strike and maturity combination, making it discrete.  
+For example, traders may have option prices for $K = 100, 105, 110$ and maturities $T = 3$ or $6$ months.  
+If a client requests an option with $K = 103$ and $T = 4$ months, that information is missing.
+
+Interpolation is therefore used to fill in the gaps, allowing the model to generate a continuous volatility surface between observed points.
+
+\section{The Calibration Phase}
+
+To ensure the model fits real market data, it must be calibrated.  
+The trader uses liquid market option prices to estimate the SABR parameters.  
+Calibration can be viewed as finding the settings $(\alpha, \rho, \nu)$ that make the SABR curve pass through the observed market data.
+
+\subsection*{Two Sources of Volatility}
+
+During calibration, two volatility measures are involved:
+\begin{itemize}
+    \item The market volatility, obtained by inverting the Black–Scholes formula using observed option prices;
+    \item The model volatility, a theoretical value calculated using the Hagan et al. SABR approximation formula.
+\end{itemize}
+
+\subsection*{Objective of Calibration}
+
+The goal is to find the parameters $(\alpha, \rho, \nu)$ that minimize the difference between the two volatilities:
+
+\[
+E(\alpha, \rho, \nu) = \sum_{i=1}^{n} w_i 
+\left( \sigma_{\text{SABR}}(K_i, \alpha, \rho, \nu)
+- \sigma_{\text{market}}(K_i) \right)^2,
+\]
+
+where:
+\begin{itemize}
+    \item $\sigma_{\text{SABR}}$ is the implied volatility given by the SABR model for strike $K_i$;
+    \item $\sigma_{\text{market}}$ is the implied volatility observed in the market;
+    \item $w_i$ is a weight associated with each data point.
+\end{itemize}
+
+\subsection*{Parameter Constraints}
+
+The parameters must satisfy the following constraints:
+
+\[
+\alpha > 0 \quad \text{(positive volatility)}, \qquad
+\nu > 0 \quad \text{(positive vol-of-vol)}, \qquad
+\rho \in (-1, 1) \quad \text{(valid correlation range).}
+\]
+
+\section{Result of Calibration}
+
+Once the parameters are calibrated, the model provides a smooth and coherent implied volatility function that allows computing volatility for any strike $K$ and maturity $T$.  
+The trader can then plug this implied volatility into the Black–Scholes formula to obtain a consistent option price.
+
+In summary, the SABR model is not primarily used for direct option pricing but for generating a continuous and realistic implied volatility surface.  
+This surface is essential for any trading desk to maintain consistent pricing and hedging across strikes and maturities.
 
 
 \chapter{Conclusion}
