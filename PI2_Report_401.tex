@@ -1,0 +1,431 @@
+\documentclass[12pt, a4paper]{report}
+
+% --- PACKAGES UTILES ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath} 
+\usepackage{amsfonts} 
+\usepackage{amssymb}
+\usepackage{graphicx} 
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{fancyhdr} 
+\usepackage{url}
+\usepackage{hyperref}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm,
+    headheight=15pt
+}
+
+\pagestyle{fancy}
+\fancyhf{} 
+\fancyhead[L]{\nouppercase{\leftmark}} 
+\fancyhead[R]{\thepage} 
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+\thispagestyle{empty} 
+
+\begin{titlepage}
+
+    \centering
+    \vspace*{1.5cm}
+
+    \rule{\textwidth}{1.5pt}
+    \vspace{0.4cm}
+    {\Huge \textbf{PI² : CRR Platform and Alternative Option Pricing Models Study}} \\
+    \vspace{0.2cm}
+    {\Large \textit{Focus on more complex models: Heston and SABR}}
+    \vspace{0.4cm}
+    \rule{\textwidth}{0.5pt} 
+    
+    \vspace{2cm}
+
+    {\Large \textbf{Team \& Authors}} \\
+    \vspace{0.5cm}
+    {\large 
+    Téo Bourscheidt \\
+    Hypolite Daniel \\
+    Mathéo Négoce \\
+    Axel Portier \\
+    Louis Roze \\
+    }
+    
+    \vspace{0.3cm}
+    {\Large \textbf{Team ID:} \textbf{401}}
+    
+    \vspace{2cm}
+    
+    {\Large \textbf{Academic Supervisors}} \\
+    \vspace{0.5cm}
+    {\large
+    V. Lambert \\
+    W. Hammersley
+    }
+
+    \vspace{3cm}
+
+ 
+    {\large 
+    \today \\
+  
+    }
+    
+    \vfill
+    
+    {\small 
+    [ESILV / Financial Engineering Major ]
+    }
+
+\end{titlepage}
+
+\clearpage
+
+\newpage
+\tableofcontents
+\newpage
+
+\chapter{Introduction}
+\label{ch:introduction}
+
+\section{Context and Motivation}
+
+This report details the implementation of a platform for option pricing and analysis of a **CRR (Cox-Ross-Rubinstein) model**, 
+and extends the study to Black-Scholes Merton model and more complex and realistic models, 
+notably the **Heston** and **SABR** models. The CRR model provides a foundational discrete-time approach, 
+while the stochastic volatility models address limitations of the Black-Scholes framework observed in market data, such as the volatility smile and skew.
+
+\section{Structure of the Report}
+
+The following chapters are organized to first establish the baseline model, followed by a thorough investigation of the alternative models.
+
+
+\section{Introduction to Financial Options and the Valuation Framework}
+
+Financial options represent a critical and widely traded class of \textbf{derivative instruments}. A derivative is a contract whose value is not inherent but is instead \textit{derived} from the price movement of an underlying asset, $S$. This underlying asset can be a stock, an index, a commodity, or a currency.
+
+An option contract grants its holder the \textbf{right}, but unequivocally \textbf{not the obligation}, to transact the underlying asset at a pre-specified price, known as the \textbf{Strike Price} ($K$), on or before a defined future date, the \textbf{Maturity} or Expiration Date ($T$). In exchange for acquiring this valuable right, the option holder pays an initial cost, termed the \textbf{Premium} (or the price of the option), to the option writer (seller).
+
+\subsection{Option Types: Call and Put}
+
+Options are fundamentally categorized into two types, reflecting the directional expectation of the holder:
+
+\begin{enumerate}
+    \item \textbf{Call Option}: Confers the right to \textbf{buy} the underlying asset at the strike price $K$. The holder expects the price of the underlying asset to \textit{increase} substantially above $K$ before expiration.
+    \item \textbf{Put Option}: Confers the right to \textbf{sell} the underlying asset at the strike price $K$. The holder expects the price of the underlying asset to \textit{decrease} substantially below $K$ before expiration.
+\end{enumerate}
+
+\subsection{Market Positions: Long and Short}
+
+For every option contract, two opposing positions exist, defining the roles and the risk profiles of the participants:
+
+\begin{itemize}
+    \item \textbf{Long Position (The Holder)}: This participant purchases the option, pays the premium, and owns the right. The maximum potential loss is strictly limited to the premium paid, while the potential gain can be substantial (theoretically unlimited for a long call).
+    \item \textbf{Short Position (The Writer/Seller)}: This participant sells the option, receives the premium, and assumes the obligation to honor the contract if the holder chooses to exercise. While the seller profits from the premium if the option expires worthless, the potential loss exposure can be significant, often justifying the need for sophisticated hedging strategies.
+\end{itemize}
+
+\subsection{Payoff Structures for European Options}
+
+The valuation of an option pivots on its potential payoff at maturity. The most elementary option is the \textbf{European Option}, which possesses the crucial restriction that it can only be exercised precisely on its expiration date, $T$. The terminal payoff, $P_T$, is defined solely by the final underlying price, $S_T$, relative to the strike price $K$.
+
+The payoff functions, which represent the intrinsic value of the option at maturity, are expressed mathematically as follows:
+
+\begin{itemize}
+    \item The payoff for a \textbf{Long European Call} grants a profit if $S_T > K$:
+    $$C_T = \max(S_T - K, 0)$$
+    \item The payoff for a \textbf{Long European Put} grants a profit if $S_T < K$:
+    $$P_T = \max(K - S_T, 0)$$
+\end{itemize}
+
+The payoff for the corresponding short positions are the negative of the long positions: $C_T^{\text{Short}} = -C_T$ and $P_T^{\text{Short}} = -P_T$.
+
+\subsection{Extending the Framework: Other Option Styles}
+
+The European option, while providing the foundation for analytical pricing models such as the Black-Scholes-Merton model, is just one style. The complexity of option valuation arises from contracts with alternative exercise rights or more elaborate payoff definitions:
+
+\begin{enumerate}
+    \item \textbf{Exercise Timing Variations}: The \textbf{American Option} permits the holder to exercise the option at \textbf{any time} from the purchase date up to and including the expiration date $T$. This early exercise feature adds significant complexity, rendering simple analytical closed-form solutions typically unavailable and mandating the use of numerical methods, such as the Binomial Model or Lattice methods.
+    \item \textbf{Payoff Variations (Exotic Options)}: Options like \textbf{Asian}, \textbf{Barrier}, or \textbf{Lookback} options feature payoffs that depend on factors beyond just the final price $S_T$. For instance, an Asian option's payoff is often calculated using the \textit{average} price of the underlying over the option's life, requiring path-dependent valuation techniques like Monte Carlo simulation.
+\end{enumerate}
+
+The objective of valuation theory, which encompasses both the analytical Black-Scholes model and the discrete-time \textbf{Cox-Ross-Rubinstein (CRR) Model}, is to determine the fair price (premium) of these rights today, by discounting the expected payoff under a risk-neutral measure, taking into account the specifics of the option's exercise and payoff rules.
+
+
+\chapter{The Black-Scholes-Merton Model Analysis}
+\label{ch:BS}
+
+\section{Introduction and Foundations of Valuation}
+
+The primary objective of the Black-Scholes-Merton (BSM) model is to determine the \textbf{fair price} (premium) of a European option, $V$, based on the current price of its underlying asset, $S$. This valuation is performed within a continuous-time framework and relies on the fundamental principle of \textbf{no-arbitrage} in a frictionless market.
+
+\subsubsection*{The Principle of No-Arbitrage}
+
+In financial economics, a no-arbitrage condition dictates that it must be impossible to construct a portfolio that yields a positive 
+return with zero risk and zero initial investment. The BSM framework, like the Binomial Model (CRR), relies on this concept to uniquely define the option price. 
+If a security could be perfectly replicated using a combination of other traded assets, the Law of One Price demands that the value of the security must be equal 
+to the cost of its replicating portfolio. Any deviation would immediately create an arbitrage opportunity.
+
+\section{Model Assumptions and Stochastic Process}
+
+The validity and solvability of the Black-Scholes-Merton (BSM) framework are predicated upon a set of stringent and foundational assumptions concerning the market structure and the behavior of the underlying asset price.
+
+\subsubsection*{A. Market Structure Assumptions}
+
+The model operates within a highly idealized environment:
+
+\begin{enumerate}
+    \item \textbf{Frictionless Market:} Trading is assumed to be continuous, without any transaction costs, taxes, or short-sale restrictions. Assets are perfectly divisible.
+    \item \textbf{Constant Interest Rate:} The risk-free interest rate, $r$, at which money can be borrowed or lent, is known and constant over the life of the option.
+    \item \textbf{No-Arbitrage Opportunities:} The market is assumed to be efficient, preventing the existence of risk-free profits with zero initial investment.
+    \item \textbf{Constant Dividend Yield:} For assets that pay continuous dividends, the dividend yield, $q$, is known and constant. (In the basic model, $q=0$).
+\end{enumerate}
+
+\subsubsection*{B. The Stochastic Process for the Underlying Asset}
+
+The most critical assumption for the analytical tractability of the BSM model is the way the underlying asset price, $S_t$, evolves over time.
+
+The asset price is modeled as a solution to a stochastic differential equation (SDE), following a \textbf{Geometric Brownian Motion (GBM)}:
+
+$$dS_t = \mu S_t dt + \sigma S_t dW_t$$
+
+\noindent Where:
+\begin{itemize}
+    \item $S_t$: Price of the underlying asset at time $t$.
+    \item $dW_t$: Increment of a standard \textbf{Wiener Process} (Brownian Motion), characterized by $dW_t \sim N(0, dt)$. This term captures the random, unpredictable component of the price movement.
+    \item $\mu$: The \textbf{drift rate} (expected return) of the stock price, assumed to be constant.
+    \item $\sigma$: The \textbf{volatility} of the stock returns, assumed to be constant and known.
+\end{itemize}
+
+The SDE for the GBM implies that the percentage change in the stock price ($dS_t/S_t$) is normally distributed. Integrating the SDE yields the closed-form expression for $S_T$:
+
+$$S_T = S_0 \exp\left( \left(\mu - \frac{1}{2}\sigma^2\right) T + \sigma W_T \right)$$
+
+This expression shows that $S_T$ is a random variable whose logarithm, $\ln(S_T)$, follows a normal distribution. Therefore, the asset price $S_T$ is said to follow a \textbf{log-normal distribution}. 
+
+\subsubsection*{C. Implications for Option Pricing}
+
+The assumption of constant volatility ($\sigma$) is fundamental to obtaining a closed-form solution. Furthermore, in the risk-neutral pricing framework—which is implicit in the derivation of the BSM PDE—the expected return $\mu$ is replaced by the risk-free rate $r$. The pricing equation is therefore solved under the \textbf{risk-neutral measure} ($Q$):
+
+$$dS_t = r S_t dt + \sigma S_t dW_t^Q$$
+
+The price of the option is then the discounted expected value of its terminal payoff under this risk-neutral measure:
+
+$$V(S_0, t=0) = e^{-rT} E_Q [\max(S_T - K, 0)]$$
+
+The reliance on a constant $\sigma$ and the log-normal distribution forms the basis for the model's analytical power but also represents its greatest limitation, as will be discussed in Section 5.
+
+
+\section{Derivation and Closed-Form Black-Scholes Formula}
+
+
+The core of the Black-Scholes-Merton (BSM) framework is the derivation of a partial differential equation (PDE) that must be satisfied by the price of any derivative $V(S, t)$ to ensure the continuous existence of a no-arbitrage condition.
+
+\subsubsection*{A. The Construction of the Risk-Free Portfolio}
+
+We begin by considering a portfolio, $\Pi$, composed of a long position in the option and a short position in a specific quantity of the underlying asset, $S$. The goal is to choose the quantity of the underlying asset such that the portfolio's value is instantaneously immune to small changes in $S$.
+
+Let $V$ be the option price and $S$ be the underlying price. The portfolio value at time $t$ is:
+$$\Pi = V - \Delta S$$
+where $\Delta$ is the instantaneous change in the option price with respect to the underlying price, $\Delta = \frac{\partial V}{\partial S}$.
+
+The change in the value of the portfolio, $d\Pi$, over a small time interval $dt$ is:
+$$d\Pi = dV - \Delta dS$$
+
+\subsubsection*{B. Applying Itô's Lemma}
+
+Since the underlying price $S$ follows a Geometric Brownian Motion ($dS = \mu S dt + \sigma S dW$), and the option price $V(S, t)$ is a function of $S$ and $t$, we must use \textbf{Itô's Lemma} to express $dV$.
+
+Itô's Lemma states:
+$$dV = \left( \frac{\partial V}{\partial t} + \mu S \frac{\partial V}{\partial S} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \right) dt + \sigma S \frac{\partial V}{\partial S} dW$$
+This expression relates the total change in the option value ($dV$) to the time decay ($\frac{\partial V}{\partial t}$, or Theta), the predictable part of the underlying movement ($\mu S \frac{\partial V}{\partial S}$), the curvature correction ($\frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2}$ from Itô's rule), and the random part (the $dW$ term).
+
+\subsubsection*{C. Eliminating Stochastic Risk}
+
+We substitute the expressions for $dV$ and $dS$ back into the change in the portfolio value $d\Pi = dV - \Delta dS$:
+
+$$d\Pi = \left[ \left( \frac{\partial V}{\partial t} + \mu S \frac{\partial V}{\partial S} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \right) dt + \sigma S \frac{\partial V}{\partial S} dW \right] - \Delta (\mu S dt + \sigma S dW)$$
+
+Substituting $\Delta = \frac{\partial V}{\partial S}$ and rearranging the terms by separating the deterministic ($dt$) and stochastic ($dW$) components:
+
+$$d\Pi = \left[ \frac{\partial V}{\partial t} + \mu S \frac{\partial V}{\partial S} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} - \mu S \frac{\partial V}{\partial S} \right] dt + \sigma S \left( \frac{\partial V}{\partial S} - \frac{\partial V}{\partial S} \right) dW$$
+
+The key step is the cancellation of the stochastic $dW$ term:
+$$\sigma S \left( \frac{\partial V}{\partial S} - \frac{\partial V}{\partial S} \right) dW = 0$$
+
+This leaves $d\Pi$ entirely deterministic:
+$$d\Pi = \left( \frac{\partial V}{\partial t} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \right) dt$$
+
+\subsubsection*{D. The Black-Scholes Partial Differential Equation (PDE)}
+
+Since the portfolio $\Pi$ is now instantaneously risk-free (it has no $dW$ term), its return must, by the no-arbitrage principle, equal the return on a risk-free bond, $r$. The return on the portfolio is $d\Pi = r \Pi dt$.
+
+Substituting $\Pi = V - \Delta S$:
+$$d\Pi = r (V - \Delta S) dt$$
+$$r V dt - r \frac{\partial V}{\partial S} S dt = \left( \frac{\partial V}{\partial t} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} \right) dt$$
+
+Dividing by $dt$ and rearranging the terms to zero, we obtain the fundamental \textbf{Black-Scholes PDE}:
+
+$$\frac{\partial V}{\partial t} + r S \frac{\partial V}{\partial S} + \frac{1}{2} \sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} - r V = 0$$
+$$\text{or equivalently: } \quad \theta + r S \Delta + \frac{1}{2} \sigma^2 S^2 \Gamma - r V = 0$$
+
+This celebrated equation must hold for the price of any derivative $V(S, t)$ written on an asset $S$ following a GBM. The equation is remarkable because it does \textbf{not} depend on the expected return $\mu$ of the underlying asset, confirming the validity of risk-neutral pricing.
+
+\subsubsection*{E. The Closed-Form Solution}
+
+The BSM PDE is solved subject to the terminal boundary condition corresponding to the option's payoff at maturity $T$. For a European Call option, the boundary condition is $V(S, T) = \max(S_T - K, 0)$.
+
+The solution to the PDE is the well-known Black-Scholes formula for the price of a European Call ($C$):
+
+$$C = S_0 N(d_1) - K e^{-r T} N(d_2)$$
+
+And for a European Put ($P$), using the Put-Call Parity identity:
+$$P = K e^{-r T} N(-d_2) - S_0 N(-d_1)$$
+
+Where $N(\cdot)$ is the cumulative standard normal distribution function, and the parameters $d_1$ and $d_2$ are defined as:
+$$d_1 = \frac{\ln(S_0/K) + (r + \sigma^2/2) T}{\sigma \sqrt{T}}$$
+$$d_2 = d_1 - \sigma \sqrt{T} = \frac{\ln(S_0/K) + (r - \sigma^2/2) T}{\sigma \sqrt{T}}$$
+
+The term $N(d_1)$ represents the Delta ($\Delta$) of the Call option. The term $e^{-r T} N(d_2)$ can be interpreted as the probability, under the risk-neutral measure, that the option will expire in-the-money, discounted at the risk-free rate.
+
+
+\section{Practical Application: Sensitivity Measures (The Greeks)}
+
+The **Greeks** are the partial derivatives of the option pricing function $V(S, t)$ with respect to various input parameters. They quantify the sensitivity of the option's theoretical price to small changes in these parameters. For practitioners, the Greeks are indispensable tools for risk management, portfolio rebalancing, and tactical trading.
+
+\subsubsection*{A. Definition and Formulae}
+
+\begin{enumerate}
+     \item \textbf{Delta ($\Delta$)}: The first derivative of the option price with respect to the underlying price.
+    \[
+    \Delta = \frac{\partial V}{\partial S}
+    \]
+    \textbf{Interpretation}: $\Delta$ measures the change in the option price for a one-unit change in the underlying asset's price. It represents the quantity of the underlying asset that must be held to perfectly hedge an instantaneous movement in $S$.
+    For a European Call option, $\Delta = N(d_1)$.
+    For a European Put option, $\Delta = N(d_1) - 1 = -N(-d_1)$.
+
+    \item \textbf{Gamma ($\Gamma$)}: The second derivative of the option price with respect to the underlying price.
+    \[
+    \Gamma = \frac{\partial^2 V}{\partial S^2} = \frac{\partial \Delta}{\partial S}
+    \]
+    \textbf{Interpretation}: $\Gamma$ measures the rate of change of the Delta. It indicates how often a portfolio's $\Delta$ must be adjusted to maintain a neutral hedge. A high Gamma implies high curvature and requires frequent rebalancing.
+    \[
+    \Gamma = \frac{N'(d_1)}{S \sigma \sqrt{T}}
+    \]
+
+    \item \textbf{Vega ($\mathcal{V}$)}: The first derivative of the option price with respect to the volatility ($\sigma$).
+    \[
+    \mathcal{V} = \frac{\partial V}{\partial \sigma}
+    \]
+    \textbf{Interpretation}: $\mathcal{V}$ measures the sensitivity of the option price to a one-percentage point change in the assumed volatility. Since the BSM model assumes constant volatility, Vega is particularly important as volatility is typically the most unpredictable input parameter.
+    \[
+    \mathcal{V} = S N'(d_1) \sqrt{T}
+    \]
+
+    \item \textbf{Theta ($\Theta$)}: The first derivative of the option price with respect to time ($t$).
+    \[
+    \Theta = \frac{\partial V}{\partial t}
+    \]
+    \textbf{Interpretation}: $\Theta$ measures the rate of decay of the option price as time passes (time decay). For options not deep in-the-money, Theta is usually negative, reflecting the loss of time value as maturity approaches.
+
+    \item \textbf{Rho ($\rho$)}: The first derivative of the option price with respect to the risk-free rate ($r$).
+    \[
+    \rho = \frac{\partial V}{\partial r}
+    \]
+    \textbf{Interpretation}: $\rho$ measures the sensitivity of the option price to changes in the risk-free interest rate.
+\end{enumerate}
+
+\subsubsection*{B. The Use of Greeks in Trading and Risk Management}
+
+In practical financial markets, options traders and market makers use the Greeks to manage portfolio risk, execute arbitrage strategies, and speculate on market parameters.
+
+\begin{enumerate}
+    \item \textbf{Delta Hedging (First-Order Hedging)}:
+    The primary use of Delta is to construct a **Delta-Neutral Portfolio** ($\Pi_{\Delta}$). A portfolio is $\Delta$-neutral if the total $\Delta$ of all options and underlying assets sums to zero: $\sum \Delta_i = 0$. This strategy protects the portfolio manager against small, instantaneous movements in the underlying price $S$. This is the essence of the replication argument in the BSM derivation.
+    
+    \item \textbf{Gamma Risk and Portfolio Rebalancing}:
+    While Delta-neutrality protects against first-order changes, **Gamma risk** is crucial. Since $\Delta$ changes when $S$ changes, the portfolio quickly ceases to be $\Delta$-neutral. Traders facing high negative $\Gamma$ must frequently rebalance (buy high, sell low) to maintain $\Delta$-neutrality, incurring costs. A trader may choose to maintain a **Gamma-Neutral Portfolio** ($\sum \Gamma_i = 0$) to protect against larger moves in $S$, often by using options with different maturities or strikes.
+    
+    \item \textbf{Trading Volatility (Speculation and Profit)}:
+    Traders often view the option price less as a formula output and more as a function of **Implied Volatility ($\sigma_{implied}$)**, which is the $\sigma$ value that makes the BSM price match the observed market price. Since $\sigma_{implied}$ is a market expectation, traders with a view on future volatility (e.g., expecting a spike) will hold a **positive Vega portfolio**. They are, in effect, speculating on the market's expectation of risk, rather than the direction of the underlying asset. \textbf{Vega risk} is where large profits or losses are often realized in option trading, as models like Heston (Section 5) show volatility is a separate tradable factor.
+    
+    \item \textbf{Profit from Time Decay ($\Theta$)}:
+    The concept of $\Theta$ forms the basis for strategies like selling options (writing calls/puts). Sellers (short positions) benefit from time decay, as the value of the option erodes over time, providing a constant positive gain ($\text{Profit} = - \Theta \times dt$) as long as the underlying price remains stable. This profit offsets the risk exposure assumed by the option writer.
+\end{enumerate}
+
+In sophisticated trading environments, market makers seek to maintain portfolios that are simultaneously neutral across several Greeks (e.g., Delta-Gamma-Vega neutral), ensuring that the portfolio's profitability is derived not from market direction but from capturing the bid-ask spread and managing liquidity risk.
+
+
+
+\section{Model Limitations: Volatility Smile and Skew}
+
+
+Despite its foundational importance and analytical elegance, the Black-Scholes-Merton (BSM) model suffers from significant limitations when confronted with empirical market data. These shortcomings stem primarily from the model's most restrictive simplifying assumptions regarding the behavior of the underlying asset and its volatility.
+
+\subsubsection*{A. The Breakdown of Key Assumptions}
+
+The model's derivation relies on two assumptions that are consistently violated in real financial markets:
+
+\begin{enumerate}
+    \item \textbf{Constant Volatility ($\sigma$):} The BSM model assumes that the instantaneous volatility of the asset returns is constant over the life of the option and across all strike prices.
+    \item \textbf{Log-Normal Distribution:} The asset returns are assumed to follow a log-normal distribution, which implies that returns are normally distributed and symmetric. This rules out the possibility of large price jumps and suggests a lower probability of extreme events (crashes or booms) than empirically observed.
+\end{enumerate}
+
+\subsubsection*{B. The Empirical Evidence: Volatility Smile and Skew}
+
+When the BSM formula is used in reverse—taking the observed market price of an option and solving for the implied volatility ($\sigma_{implied}$) that makes the formula hold—it is found that $\sigma_{implied}$ is not constant. Instead, it systematically varies with the option's strike price ($K$) and its time to maturity ($T$). This observed pattern is known as the **Volatility Smile** or **Volatility Skew**.
+
+\begin{enumerate}
+    \item \textbf{The Volatility Smile:} Historically observed on currency options, the "smile" occurs when the implied volatility is lowest for at-the-money (ATM) options ($K \approx S_0$) and increases for both deep out-of-the-money (OTM) and deep in-the-money (ITM) options.
+    
+    \item \textbf{The Volatility Skew (Equity Markets):} In equity markets, the pattern is typically asymmetric and referred to as a "skew." The implied volatility is significantly \textbf{higher} for low strike prices (OTM Put options) than for high strike prices (OTM Call options). This reflects the market's collective belief that there is a greater risk of a large, sudden price drop (crash) than of a large price jump, a phenomenon known as \textbf{crashophobia}. This skew cannot be reconciled with the symmetric log-normal distribution assumed by BSM.
+    
+\end{enumerate}
+
+The existence of the volatility surface ($\sigma_{implied}(K, T)$) proves that the BSM model is inherently misspecified because it requires a different $\sigma$ input for every strike and maturity combination to correctly price options observed in the market.
+
+\subsubsection*{C. Transition to Modern Models}
+
+These systematic pricing errors necessitate the development of more advanced models that relax the restrictive assumptions of the BSM framework. The primary goal of these modern models is to incorporate the observed dynamics of the volatility surface directly into the pricing framework:
+
+\begin{itemize}
+    \item \textbf{Local Volatility Models (LV):} These models retain the risk-neutral pricing framework but define volatility as a deterministic function of both the underlying price and time, $\sigma(S, t)$.
+    
+    \item \textbf{Stochastic Volatility Models (SV):} Models such as the **HESTON Model** (Heston 1993) treat volatility not as a constant, but as a separate, time-varying random process. This approach is more economically realistic as it allows volatility to be priced and traded, capturing the observed correlation between volatility and the underlying asset returns.
+    
+    \item \textbf{Stochastic Alpha Beta Rho Models (SABR):} The SABR model is specifically designed for the interest rate and FX markets. It models the underlying price and its volatility stochastically and is highly effective at fitting the observed volatility skew and smile simultaneously.
+\end{itemize}
+
+These advanced models, while mathematically more complex, provide a more accurate and consistent pricing of the entire option book, a necessity for contemporary quantitative finance.
+
+
+\chapter{The CRR Binomial Model Platform}
+\label{ch:crr}
+
+
+\chapter{Stochastic Volatility Models}
+\label{ch:stochastic_volatility}
+
+
+\chapter{Conclusion}
+\label{ch:conclusion}
+
+This chapter will summarize the findings from the CRR platform analysis and the comparative performance of the Heston and SABR models in replicating market option prices.
+
+
+\chapter{References}
+\label{ch:references}
+
+\begin{itemize}
+
+    \item \url{https://math.univ-lyon1.fr/~caldero/Derom.pdf}
+    \item \url{https://fr.wikipedia.org/wiki/Mod%C3%A8le_Black-Scholes}
+
+\end{itemize}
+
+
+\end{document}
